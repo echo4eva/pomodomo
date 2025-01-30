@@ -5,12 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/echo4eva/pomogomo/internal/database"
 	"github.com/rivo/tview"
 )
 
 var (
 	app  *tview.Application
 	view *tview.Modal
+	db   *database.Database
 )
 
 func getTimer(end time.Time) string {
@@ -19,6 +21,11 @@ func getTimer(end time.Time) string {
 	countdown := formatTimer(difference.String())
 
 	return fmt.Sprint(countdown)
+}
+
+func getElapsedTime(start time.Time) string {
+	elapsed := time.Since(start)
+	return formatTimer(elapsed.Round(time.Second).String())
 }
 
 func formatTimer(duration string) string {
@@ -45,14 +52,14 @@ func formatTimer(duration string) string {
 		hours := duration[:hourIndex]
 		minutes := duration[hourIndex+1 : minuteIndex]
 		seconds := duration[minuteIndex+1 : secondIndex]
-		formattedCountdown = fmt.Sprintf("%s hours %s minutes %s seconds", hours, minutes, seconds)
+		formattedCountdown = fmt.Sprintf("%s:%s:%s", hours, minutes, seconds)
 	} else if minutesExists && secondsExist {
 		minutes := duration[:minuteIndex]
 		seconds := duration[minuteIndex+1 : secondIndex]
-		formattedCountdown = fmt.Sprintf("%s minutes %s seconds", minutes, seconds)
+		formattedCountdown = fmt.Sprintf("%s:%s", minutes, seconds)
 	} else {
 		seconds := duration[:secondIndex]
-		formattedCountdown = fmt.Sprintf("%s seconds", seconds)
+		formattedCountdown = fmt.Sprint(seconds)
 	}
 
 	return formattedCountdown
@@ -65,23 +72,31 @@ func updateTimer(end time.Time) {
 		app.QueueUpdateDraw(func() {
 			view.SetText(fmt.Sprint(timer, " left"))
 		})
-		if timer == "0 seconds" {
+		if timer == "0" {
 			break
 		}
 	}
 }
 
-func Exec(t0, t1 time.Time, task string) {
+func Exec(start, end time.Time, task string) {
+	db, err := database.New()
+	if err != nil {
+		panic(err)
+	}
 	app = tview.NewApplication()
 	view = tview.NewModal().
 		AddButtons([]string{"give up :("}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			if buttonLabel == "give up :(" {
+				db.AddSession(database.Session{
+					Date:     time.Now().Format(time.DateOnly),
+					Duration: getElapsedTime(start),
+					Task:     task,
+				})
 				app.Stop()
 			}
 		})
-
-	go updateTimer(t1)
+	go updateTimer(end)
 	if err := app.SetRoot(view, false).Run(); err != nil {
 		panic(err)
 	}

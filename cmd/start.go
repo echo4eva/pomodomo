@@ -27,12 +27,10 @@ func run(cmd *cobra.Command, args []string) {
 	minutes, _ := cmd.Flags().GetUint("minutes")
 	task, _ := cmd.Flags().GetString("")
 
-	t0 := time.Now()
-	t1 := t0.Add(time.Minute * time.Duration(minutes))
+	start := time.Now()
+	end := start.Add(time.Minute * time.Duration(minutes))
 
-	// duration := t.Sub(t.Add(time.Minute * time.Duration(minutes)))
-
-	ui.Exec(t0, t1, task)
+	ui.Exec(start, end, task)
 }
 
 func init() {
