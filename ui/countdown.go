@@ -11,31 +11,29 @@ import (
 )
 
 type UI struct {
-	app   *tview.Application
-	view  *tview.Modal
-	db    *database.Database
-	start *time.Time
-	end   *time.Time
-	task  *string
+	app           *tview.Application
+	view          *tview.Modal
+	db            *database.Database
+	start         *time.Time
+	scheduled_end *time.Time
+	task          *string
 }
 
-func getTimer(end time.Time) string {
-	difference := time.Until(end)
+func (ui UI) getTimer() string {
+	difference := time.Until(*ui.scheduled_end)
 	difference = difference.Round(time.Second)
 	countdown := formatTimer(difference.String())
-
 	return fmt.Sprint(countdown)
 }
 
-func getElapsedTime(start time.Time) string {
-	elapsed := time.Since(start)
+func (ui UI) getElapsedTime() string {
+	elapsed := time.Since(*ui.start)
 	return formatTimer(elapsed.Round(time.Second).String())
 }
 
-func getCompletion(end time.Time) int {
-	difference := time.Until(end)
+func (ui UI) getCompletion() int {
+	difference := time.Until(*ui.scheduled_end)
 	difference = difference.Round(time.Second)
-
 	if difference <= (time.Second * 0) {
 		return 1
 	}
@@ -43,37 +41,35 @@ func getCompletion(end time.Time) int {
 }
 
 func formatTimer(duration string) string {
+	fillZeroes := func(s string) string {
+		if len(s) < 2 {
+			return "0" + s
+		}
+		return s
+	}
+
 	var formattedCountdown string
 
-	hoursExists := false
-	minutesExists := false
-	secondsExist := false
-
 	hourIndex := strings.Index(duration, "h")
-	if hourIndex != -1 {
-		hoursExists = true
-	}
 	minuteIndex := strings.Index(duration, "m")
-	if minuteIndex != -1 {
-		minutesExists = true
-	}
 	secondIndex := strings.Index(duration, "s")
-	if secondIndex != -1 {
-		secondsExist = true
-	}
 
-	if hoursExists && minutesExists && secondsExist {
-		hours := duration[:hourIndex]
-		minutes := duration[hourIndex+1 : minuteIndex]
-		seconds := duration[minuteIndex+1 : secondIndex]
-		formattedCountdown = fmt.Sprintf("%s:%s:%s", hours, minutes, seconds)
-	} else if minutesExists && secondsExist {
-		minutes := duration[:minuteIndex]
-		seconds := duration[minuteIndex+1 : secondIndex]
-		formattedCountdown = fmt.Sprintf("%s:%s", minutes, seconds)
-	} else {
-		seconds := duration[:secondIndex]
-		formattedCountdown = fmt.Sprint(seconds)
+	switch {
+	case hourIndex != -1 && minuteIndex != -1 && secondIndex != -1:
+		formattedCountdown = fmt.Sprintf("%s:%s:%s",
+			fillZeroes(duration[:hourIndex]),
+			fillZeroes(duration[hourIndex+1:minuteIndex]),
+			fillZeroes(duration[minuteIndex+1:secondIndex]),
+		)
+	case minuteIndex != -1 && secondIndex != -1:
+		formattedCountdown = fmt.Sprintf("00:%s:%s",
+			fillZeroes(duration[:minuteIndex]),
+			fillZeroes(duration[minuteIndex+1:secondIndex]),
+		)
+	default:
+		formattedCountdown = fmt.Sprintf("00:00:%s",
+			fillZeroes(duration[:secondIndex]),
+		)
 	}
 
 	return formattedCountdown
@@ -82,11 +78,14 @@ func formatTimer(duration string) string {
 func (ui *UI) updateTimer() {
 	for {
 		time.Sleep(1 * time.Second)
-		timer := getTimer(*ui.end)
+		timer := ui.getTimer()
 		ui.app.QueueUpdateDraw(func() {
 			ui.view.SetText(fmt.Sprint(timer, " left"))
 		})
 		if timer == "0" {
+			ui.app.QueueUpdateDraw(func() {
+				ui.view.SetText("You're done! Lock in if you're tapped in!")
+			})
 			break
 		}
 	}
@@ -102,14 +101,16 @@ func (ui *UI) captureInterruptSignal(event *tcell.EventKey) *tcell.EventKey {
 
 func (ui *UI) completeSession() {
 	ui.db.AddSession(database.Session{
-		Date:      time.Now().Format(time.DateOnly),
-		Duration:  getElapsedTime(*ui.start),
-		Task:      *ui.task,
-		Completed: getCompletion(*ui.end),
+		Duration:     ui.getElapsedTime(),
+		Task:         *ui.task,
+		Start:        (*ui.start).Format(time.RFC3339),
+		ScheduledEnd: (*ui.scheduled_end).Format(time.RFC3339),
+		EndedAt:      time.Now().Format(time.RFC3339),
+		Completed:    ui.getCompletion(),
 	})
 }
 
-func Exec(start, end time.Time, task string) {
+func Exec(start, scheduled_end time.Time, task string) {
 	db, err := database.New()
 	if err != nil {
 		panic(err)
@@ -118,12 +119,12 @@ func Exec(start, end time.Time, task string) {
 	view := tview.NewModal()
 
 	ui := &UI{
-		app:   app,
-		view:  view,
-		db:    db,
-		start: &start,
-		end:   &end,
-		task:  &task,
+		app:           app,
+		view:          view,
+		db:            db,
+		start:         &start,
+		scheduled_end: &scheduled_end,
+		task:          &task,
 	}
 
 	ui.app.SetInputCapture(ui.captureInterruptSignal)

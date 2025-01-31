@@ -13,10 +13,12 @@ type Database struct {
 }
 
 type Session struct {
-	Date      string
-	Duration  string
-	Task      string
-	Completed int
+	Duration     string
+	Task         string
+	Start        string
+	ScheduledEnd string
+	EndedAt      string
+	Completed    int
 }
 
 func New() (*Database, error) {
@@ -51,9 +53,11 @@ func (d *Database) createTable() error {
 	createSessionTableSQL := `
 		CREATE TABLE IF NOT EXISTS sessions (
 			id INTEGER PRIMARY KEY,
-			date TEXT,
 			duration TEXT,
 			task TEXT,
+			start TEXT,
+			scheduled_end TEXT,
+			ended_at TEXT,
 			completed INTEGER
 		);
 	`
@@ -74,14 +78,21 @@ func (d *Database) Close() error {
 func (d *Database) AddSession(session Session) error {
 	fmt.Println("INSERTING INTO DB")
 	insertSQL := `
-		INSERT INTO sessions(date, duration, task, completed) VALUES (?, ?, ?, ?)
+		INSERT INTO sessions(duration, task, start, scheduled_end, ended_at, completed) VALUES (?, ?, ?, ?, ?, ?)
 	`
 	stmt, err := d.db.Prepare(insertSQL)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	_, err = stmt.Exec(session.Date, session.Duration, session.Task, session.Completed)
+	_, err = stmt.Exec(
+		session.Duration,
+		session.Task,
+		session.Start,
+		session.ScheduledEnd,
+		session.EndedAt,
+		session.Completed,
+	)
 	if err != nil {
 		fmt.Println(err)
 		return err
