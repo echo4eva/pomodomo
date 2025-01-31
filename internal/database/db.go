@@ -13,12 +13,18 @@ type Database struct {
 }
 
 type Session struct {
+	Id           int
 	Duration     string
-	Task         string
+	TaskID       int
 	Start        string
 	ScheduledEnd string
 	EndedAt      string
 	Completed    int
+}
+
+type Task struct {
+	Id   int
+	Name string
 }
 
 func New() (*Database, error) {
@@ -41,7 +47,7 @@ func New() (*Database, error) {
 	db := &Database{db: sqlDB}
 
 	if !isInitialized {
-		if err := db.createTable(); err != nil {
+		if err := db.createTables(); err != nil {
 			db.Close()
 			return nil, err
 		}
@@ -49,24 +55,41 @@ func New() (*Database, error) {
 	return db, nil
 }
 
-func (d *Database) createTable() error {
-	createSessionTableSQL := `
+func (d *Database) createTables() error {
+	createSessionsTableSQL := `
 		CREATE TABLE IF NOT EXISTS sessions (
 			id INTEGER PRIMARY KEY,
 			duration TEXT,
-			task TEXT,
+			task_id INTEGER,
 			start TEXT,
 			scheduled_end TEXT,
 			ended_at TEXT,
-			completed INTEGER
+			completed INTEGER,
+			FOREIGN KEY(task_id) REFERENCES tasks(id)
 		);
 	`
-	statement, err := d.db.Prepare(createSessionTableSQL)
-	if err != nil {
-		return err
+	createTasksTableSQL := `
+		CREATE TABLE IF NOT EXISTS tasks (
+			id INTEGER PRIMARY KEY,
+			name TEXT
+		);
+	`
+
+	tables := []string{
+		createSessionsTableSQL,
+		createTasksTableSQL,
 	}
-	if _, err := statement.Exec(); err != nil {
-		return err
+
+	for _, sql := range tables {
+		stmt, err := d.db.Prepare(sql)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+
+		if _, err := stmt.Exec(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -78,16 +101,18 @@ func (d *Database) Close() error {
 func (d *Database) AddSession(session Session) error {
 	fmt.Println("INSERTING INTO DB")
 	insertSQL := `
-		INSERT INTO sessions(duration, task, start, scheduled_end, ended_at, completed) VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO sessions(duration, task_id, start, scheduled_end, ended_at, completed) VALUES (?, ?, ?, ?, ?, ?)
 	`
 	stmt, err := d.db.Prepare(insertSQL)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
+	defer stmt.Close()
+
 	_, err = stmt.Exec(
 		session.Duration,
-		session.Task,
+		session.TaskID,
 		session.Start,
 		session.ScheduledEnd,
 		session.EndedAt,
@@ -98,4 +123,79 @@ func (d *Database) AddSession(session Session) error {
 		return err
 	}
 	return nil
+}
+
+func (d *Database) CreateTask(task Task) error {
+	insertSQL := `
+		INSERT INTO tasks(name) VALUES (?)
+	`
+
+	stmt, err := d.db.Prepare(insertSQL)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(task.Name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Database) DeleteTask(name string) error {
+	deleteSQL := `
+		DELETE FROM tasks
+		WHERE name = ?
+	`
+	stmt, err := d.db.Prepare(deleteSQL)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Database) RetrieveTasks() ([]Task, error) {
+	selectSQL := `
+		SELECT name FROM tasks
+	`
+
+	row, err := d.db.Query(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+
+	var output []Task
+	for row.Next() {
+		var name string
+		row.Scan(&name)
+		output = append(output, Task{Name: name})
+	}
+	return output, nil
+}
+
+func (d *Database) RetrieveTaskByName(name string) (*Task, error) {
+	selectSQL := `
+		SELECT id, name FROM tasks WHERE name = ?
+	`
+
+	stmt, err := d.db.Prepare(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	var task Task
+	row := stmt.QueryRow(name)
+	err = row.Scan(&task.Id, &task.Name)
+	if err != nil {
+		return nil, err
+	}
+	return &task, err
 }

@@ -16,7 +16,8 @@ type UI struct {
 	db            *database.Database
 	start         *time.Time
 	scheduled_end *time.Time
-	task          *string
+	task          *database.Task
+	description   *string
 }
 
 func (ui UI) getTimer() string {
@@ -102,7 +103,7 @@ func (ui *UI) captureInterruptSignal(event *tcell.EventKey) *tcell.EventKey {
 func (ui *UI) completeSession() {
 	ui.db.AddSession(database.Session{
 		Duration:     ui.getElapsedTime(),
-		Task:         *ui.task,
+		TaskID:       (*ui.task).Id,
 		Start:        (*ui.start).Format(time.RFC3339),
 		ScheduledEnd: (*ui.scheduled_end).Format(time.RFC3339),
 		EndedAt:      time.Now().Format(time.RFC3339),
@@ -110,13 +111,17 @@ func (ui *UI) completeSession() {
 	})
 }
 
-func Exec(start, scheduled_end time.Time, task string) {
+func Exec(start, scheduled_end time.Time, taskName string) {
 	db, err := database.New()
 	if err != nil {
 		panic(err)
 	}
 	app := tview.NewApplication()
 	view := tview.NewModal()
+	task, err := db.RetrieveTaskByName(taskName)
+	if err != nil {
+		panic(err)
+	}
 
 	ui := &UI{
 		app:           app,
@@ -124,7 +129,7 @@ func Exec(start, scheduled_end time.Time, task string) {
 		db:            db,
 		start:         &start,
 		scheduled_end: &scheduled_end,
-		task:          &task,
+		task:          task,
 	}
 
 	ui.app.SetInputCapture(ui.captureInterruptSignal)
