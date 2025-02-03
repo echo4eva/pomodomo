@@ -10,30 +10,28 @@ import (
 	"github.com/rivo/tview"
 )
 
-type UI struct {
-	app           *tview.Application
-	view          *tview.Modal
-	db            *database.Database
+type TimerUI struct {
+	BaseUI[*tview.Modal]
 	start         *time.Time
 	scheduled_end *time.Time
 	task          *database.Task
 	description   *string
 }
 
-func (ui UI) getTimer() string {
-	difference := time.Until(*ui.scheduled_end)
+func (tui TimerUI) getTimer() string {
+	difference := time.Until(*tui.scheduled_end)
 	difference = difference.Round(time.Second)
 	countdown := formatTimer(difference.String())
 	return fmt.Sprint(countdown)
 }
 
-func (ui UI) getElapsedTime() string {
-	elapsed := time.Since(*ui.start)
+func (tui TimerUI) getElapsedTime() string {
+	elapsed := time.Since(*tui.start)
 	return formatTimer(elapsed.Round(time.Second).String())
 }
 
-func (ui UI) getCompletion() int {
-	difference := time.Until(*ui.scheduled_end)
+func (tui TimerUI) getCompletion() int {
+	difference := time.Until(*tui.scheduled_end)
 	difference = difference.Round(time.Second)
 	if difference <= (time.Second * 0) {
 		return 1
@@ -76,38 +74,38 @@ func formatTimer(duration string) string {
 	return formattedCountdown
 }
 
-func (ui *UI) updateTimer() {
+func (tui *TimerUI) updateTimer() {
 	for {
 		time.Sleep(1 * time.Second)
-		timer := ui.getTimer()
-		ui.app.QueueUpdateDraw(func() {
-			ui.view.SetText(fmt.Sprint(timer, " left"))
+		timer := tui.getTimer()
+		tui.app.QueueUpdateDraw(func() {
+			tui.view.SetText(fmt.Sprint(timer, " left"))
 		})
 		if timer == "0" {
-			ui.app.QueueUpdateDraw(func() {
-				ui.view.SetText("You're done! Lock in if you're tapped in!")
+			tui.app.QueueUpdateDraw(func() {
+				tui.view.SetText("You're done! Lock in if you're tapped in!")
 			})
 			break
 		}
 	}
 }
 
-func (ui *UI) captureInterruptSignal(event *tcell.EventKey) *tcell.EventKey {
+func (tui *TimerUI) captureInterruptSignal(event *tcell.EventKey) *tcell.EventKey {
 	if event.Key() == tcell.KeyCtrlC {
-		ui.completeSession()
+		tui.completeSession()
 	}
 
 	return event
 }
 
-func (ui *UI) completeSession() {
-	ui.db.AddSession(database.Session{
-		Duration:     ui.getElapsedTime(),
-		TaskID:       (*ui.task).Id,
-		Start:        (*ui.start).Format(time.RFC3339),
-		ScheduledEnd: (*ui.scheduled_end).Format(time.RFC3339),
+func (tui *TimerUI) completeSession() {
+	tui.db.AddSession(database.Session{
+		Duration:     tui.getElapsedTime(),
+		TaskID:       (*tui.task).Id,
+		Start:        (*tui.start).Format(time.RFC3339),
+		ScheduledEnd: (*tui.scheduled_end).Format(time.RFC3339),
 		EndedAt:      time.Now().Format(time.RFC3339),
-		Completed:    ui.getCompletion(),
+		Completed:    tui.getCompletion(),
 	})
 }
 
@@ -123,27 +121,25 @@ func Exec(start, scheduled_end time.Time, taskName string) {
 		panic(err)
 	}
 
-	ui := &UI{
-		app:           app,
-		view:          view,
-		db:            db,
+	tui := &TimerUI{
+		BaseUI:        Initialize(app, view, db),
 		start:         &start,
 		scheduled_end: &scheduled_end,
 		task:          task,
 	}
 
-	ui.app.SetInputCapture(ui.captureInterruptSignal)
-	ui.view.
+	tui.app.SetInputCapture(tui.captureInterruptSignal)
+	tui.view.
 		AddButtons([]string{"give up :("}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			if buttonLabel == "give up :(" {
-				ui.completeSession()
+				tui.completeSession()
 				app.Stop()
 			}
 		})
 
-	go ui.updateTimer()
-	if err := ui.app.SetRoot(view, false).Run(); err != nil {
+	go tui.updateTimer()
+	if err := tui.app.SetRoot(view, false).Run(); err != nil {
 		panic(err)
 	}
 }
