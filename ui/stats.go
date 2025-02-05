@@ -1,73 +1,79 @@
 package ui
 
 import (
+	"github.com/echo4eva/pomogomo/internal/database"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type StatsUI struct {
+	BaseUI[*tview.Flex]
+	nav           *tview.Flex
+	info          *tview.Flex
+	timeframeFlex *tview.Flex
+	timeframeList *tview.List
+	dateFlex      *tview.Flex
+	dateList      *tview.List
 }
 
-func StatsExec() {
-	app := tview.NewApplication()
-	view := tview.NewFlex()
+func createFlex(title string) *tview.Flex {
+	flex := tview.NewFlex()
+	if len(title) != 0 {
+		flex.Box.
+			SetTitle(title).
+			SetBorder(true)
+	}
+	return flex
+}
 
-	menuFlex := tview.NewFlex().SetDirection(tview.FlexRow)
-	infoFlex := tview.NewFlex()
-	infoFlex.Box.SetBorder(true).SetTitle("Info")
+func (sui *StatsUI) initializeTUI() {
+	sui.nav = createFlex("").SetDirection(tview.FlexRow)
+	sui.info = createFlex("Info")
+	sui.view.AddItem(sui.nav, 0, 1, true)
+	sui.view.AddItem(sui.info, 0, 1, false)
 
-	navFlex := tview.NewFlex()
-	navFlex.Box.SetBorder(true).SetTitle("Navigation")
-	navList := tview.NewList().ShowSecondaryText(false).
+	sui.timeframeFlex = createFlex("Timeframes")
+	sui.dateFlex = createFlex("Time periods")
+	sui.nav.AddItem(sui.timeframeFlex, 0, 1, true)
+	sui.nav.AddItem(sui.dateFlex, 0, 1, false)
+
+	sui.timeframeList = tview.NewList().ShowSecondaryText(false).
 		AddItem("Day", "", 0, nil).
 		AddItem("Week", "", 0, nil).
 		AddItem("Month", "", 0, nil).
 		AddItem("Year", "", 0, nil).
 		AddItem("Alltime", "", 0, nil)
-	navFlex.AddItem(navList, 0, 1, true)
-	menuFlex.AddItem(navFlex, 0, 1, true)
+	sui.timeframeFlex.AddItem(sui.timeframeList, 0, 1, true)
 
-	datesFlex := tview.NewFlex()
-	datesFlex.Box.SetBorder(true).SetTitle("Dates")
-	datesList := tview.NewList().ShowSecondaryText(false).
-		AddItem("01-01-01", "", 0, nil).
-		AddItem("02-02-02", "", 0, nil)
-	datesFlex.AddItem(datesList, 0, 1, true)
-	menuFlex.AddItem(datesFlex, 0, 1, false)
-
-	tagsFlex := tview.NewFlex()
-	tagsFlex.Box.SetBorder(true).SetTitle("tasks")
-	tagsList := tview.NewList().ShowSecondaryText(false).
-		AddItem("Study", "", 0, nil).
-		AddItem("Work", "", 0, nil)
-	tagsFlex.AddItem(tagsList, 0, 1, true)
-	menuFlex.AddItem(tagsFlex, 0, 1, false)
-
-	view.AddItem(menuFlex, 0, 1, true)
-	view.AddItem(infoFlex, 0, 1, false)
-
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	sui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyF1:
-			app.SetFocus(navList)
-			navFlex.Box.SetBorderColor(tcell.ColorHotPink)
-			datesFlex.Box.SetBorderColor(tcell.ColorWhite)
-			tagsFlex.Box.SetBorderColor(tcell.ColorWhite)
+			sui.app.SetFocus(sui.timeframeList)
+			sui.timeframeFlex.Box.SetBorderColor(tcell.ColorHotPink)
+			sui.dateFlex.Box.SetBorderColor(tcell.ColorWhite)
 		case tcell.KeyF2:
-			app.SetFocus(datesList)
-			navFlex.Box.SetBorderColor(tcell.ColorWhite)
-			datesFlex.Box.SetBorderColor(tcell.ColorHotPink)
-			tagsFlex.Box.SetBorderColor(tcell.ColorWhite)
-		case tcell.KeyF3:
-			app.SetFocus(tagsList)
-			navFlex.Box.SetBorderColor(tcell.ColorWhite)
-			datesFlex.Box.SetBorderColor(tcell.ColorWhite)
-			tagsFlex.Box.SetBorderColor(tcell.ColorHotPink)
+			sui.app.SetFocus(sui.dateList)
+			sui.timeframeFlex.Box.SetBorderColor(tcell.ColorWhite)
+			sui.dateFlex.Box.SetBorderColor(tcell.ColorHotPink)
 		}
 		return event
 	})
+}
 
-	if err := app.SetRoot(view, true).Run(); err != nil {
+func StatsExec() {
+	app := tview.NewApplication()
+	view := tview.NewFlex()
+	db, err := database.New()
+	if err != nil {
+		panic(err)
+	}
+
+	sui := &StatsUI{
+		BaseUI: Initialize(app, view, db),
+	}
+
+	sui.initializeTUI()
+	if err := sui.app.SetRoot(sui.view, true).Run(); err != nil {
 		panic(err)
 	}
 }
