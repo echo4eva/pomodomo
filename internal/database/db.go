@@ -22,6 +22,13 @@ type Session struct {
 	Completed    int
 }
 
+type DailySession struct {
+	Date              string
+	TotalDuration     string
+	CompletedSessions int
+	TotalSessions     int
+}
+
 type Task struct {
 	Id   int
 	Name string
@@ -198,4 +205,44 @@ func (d *Database) RetrieveTaskByName(name string) (*Task, error) {
 		return nil, err
 	}
 	return &task, err
+}
+
+func (d *Database) RetrieveDailySummary() ([]DailySession, error) {
+	selectSQL := `
+		SELECT
+			DATE(ended_at) as date,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		GROUP BY DATE(ended_at)
+		ORDER BY DATE(ended_at) DESC
+	`
+
+	stmt, err := d.db.Prepare(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	var output []DailySession
+	row, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var dailySession DailySession
+		err = row.Scan(
+			&dailySession.Date,
+			&dailySession.TotalDuration,
+			&dailySession.CompletedSessions,
+			&dailySession.TotalSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, dailySession)
+	}
+
+	return output, nil
 }
