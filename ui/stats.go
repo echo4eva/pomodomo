@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/echo4eva/pomogomo/internal/database"
 	"github.com/gdamore/tcell/v2"
@@ -86,10 +87,19 @@ func (sui *StatsUI) displayDays() {
 	}
 }
 
+func convertDuration(duration string) string {
+	conv, err := strconv.Atoi(duration)
+	if err != nil {
+		panic(err)
+	}
+	timeDuration := time.Duration(int(time.Second) * conv)
+	return timeDuration.String()
+}
+
 func (sui *StatsUI) displayStats(stats database.DailySession) {
 	sui.infoList.Clear()
 	sui.infoList.AddItem("Date", stats.Date, 0, nil)
-	sui.infoList.AddItem("Total Duration", stats.TotalDuration, 0, nil)
+	sui.infoList.AddItem("Total Duration", convertDuration(stats.TotalDuration), 0, nil)
 	sui.infoList.AddItem("Completed Sessions", strconv.Itoa(stats.CompletedSessions), 0, nil)
 	sui.infoList.AddItem("Total Sessions", strconv.Itoa(stats.TotalSessions), 0, nil)
 }

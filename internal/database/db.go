@@ -14,7 +14,7 @@ type Database struct {
 
 type Session struct {
 	Id           int
-	Duration     string
+	Duration     int
 	TaskID       int
 	Start        string
 	ScheduledEnd string

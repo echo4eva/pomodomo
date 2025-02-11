@@ -25,9 +25,9 @@ func (tui TimerUI) getTimer() string {
 	return fmt.Sprint(countdown)
 }
 
-func (tui TimerUI) getElapsedTime() string {
+func (tui TimerUI) getElapsedTime() int {
 	elapsed := time.Since(*tui.start)
-	return formatTimer(elapsed.Round(time.Second).String())
+	return int(elapsed.Seconds())
 }
 
 func (tui TimerUI) getCompletion() int {
