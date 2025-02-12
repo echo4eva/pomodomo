@@ -22,9 +22,10 @@ type Session struct {
 	Completed    int
 }
 
-type DailySession struct {
+type SessionSummary struct {
 	Date              string
-	TotalDuration     string
+	DateRange         string
+	TotalDuration     int
 	CompletedSessions int
 	TotalSessions     int
 }
@@ -207,7 +208,7 @@ func (d *Database) RetrieveTaskByName(name string) (*Task, error) {
 	return &task, err
 }
 
-func (d *Database) RetrieveDailySummary() ([]DailySession, error) {
+func (d *Database) RetrieveDailySummary() ([]SessionSummary, error) {
 	selectSQL := `
 		SELECT
 			DATE(ended_at) as date,
@@ -224,24 +225,179 @@ func (d *Database) RetrieveDailySummary() ([]DailySession, error) {
 		return nil, err
 	}
 
-	var output []DailySession
+	var output []SessionSummary
 	row, err := stmt.Query()
 	if err != nil {
 		return nil, err
 	}
 	for row.Next() {
-		var dailySession DailySession
+		var sessionSummary SessionSummary
 		err = row.Scan(
-			&dailySession.Date,
-			&dailySession.TotalDuration,
-			&dailySession.CompletedSessions,
-			&dailySession.TotalSessions,
+			&sessionSummary.Date,
+			&sessionSummary.TotalDuration,
+			&sessionSummary.CompletedSessions,
+			&sessionSummary.TotalSessions,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		output = append(output, dailySession)
+		output = append(output, sessionSummary)
+	}
+
+	return output, nil
+}
+
+func (d *Database) RetrieveWeeklySummary() ([]SessionSummary, error) {
+	selectSQL := `
+		SELECT
+			STRFTIME('%Y-%W', ended_at) as date,
+			STRFTIME('%Y-%m-%d', DATE(ended_at, 'weekday 0', '-6 days')) || ' to ' ||
+			STRFTIME('%Y-%m-%d', DATE(ended_at, 'weekday 0')) as date_range,
+			SUM(duration) as total_duration,	
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		GROUP BY date
+		ORDER BY date DESC
+	`
+
+	stmt, err := d.db.Prepare(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	var output []SessionSummary
+	row, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var sessionSummary SessionSummary
+		err = row.Scan(
+			&sessionSummary.Date,
+			&sessionSummary.DateRange,
+			&sessionSummary.TotalDuration,
+			&sessionSummary.CompletedSessions,
+			&sessionSummary.TotalSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, sessionSummary)
+	}
+
+	return output, nil
+}
+
+func (d *Database) RetrieveMonthlySummary() ([]SessionSummary, error) {
+	selectSQL := `
+		SELECT
+			STRFTIME('%Y-%m', ended_at) as date,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		GROUP BY date
+		ORDER BY date DESC
+	`
+
+	stmt, err := d.db.Prepare(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	var output []SessionSummary
+	row, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var sessionSummary SessionSummary
+		err = row.Scan(
+			&sessionSummary.Date,
+			&sessionSummary.TotalDuration,
+			&sessionSummary.CompletedSessions,
+			&sessionSummary.TotalSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, sessionSummary)
+	}
+
+	return output, nil
+}
+
+func (d *Database) RetrieveYearlySummary() ([]SessionSummary, error) {
+	selectSQL := `
+		SELECT
+			STRFTIME('%Y', ended_at) as date,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		GROUP BY date
+		ORDER BY date DESC
+	`
+
+	stmt, err := d.db.Prepare(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	var output []SessionSummary
+	row, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var sessionSummary SessionSummary
+		err = row.Scan(
+			&sessionSummary.Date,
+			&sessionSummary.TotalDuration,
+			&sessionSummary.CompletedSessions,
+			&sessionSummary.TotalSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, sessionSummary)
+	}
+
+	return output, nil
+}
+
+func (d *Database) RetrieveAlltimeSummary() ([]SessionSummary, error) {
+	selectSQL := `
+		SELECT
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+	`
+
+	stmt, err := d.db.Prepare(selectSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	var output []SessionSummary
+	row, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var sessionSummary SessionSummary
+		err = row.Scan(
+			&sessionSummary.TotalDuration,
+			&sessionSummary.CompletedSessions,
+			&sessionSummary.TotalSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, sessionSummary)
 	}
 
 	return output, nil

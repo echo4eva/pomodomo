@@ -69,15 +69,26 @@ func (sui *StatsUI) initializeTUI() {
 	})
 
 	sui.timeframeList.SetSelectedFunc(func(index int, main string, secondary string, shortcut rune) {
+		sui.dateList.Clear()
+		sui.app.SetFocus(sui.dateList)
+		sui.dateFlex.Box.SetBorderColor(tcell.ColorHotPink)
+		sui.timeframeFlex.Box.SetBorderColor(tcell.ColorWhite)
 		switch main {
 		case "Day":
 			sui.displayDays()
+		case "Week":
+			sui.displayWeeks()
+		case "Month":
+			sui.displayMonths()
+		case "Year":
+			sui.displayYears()
+		case "Alltime":
+			sui.displayAlltime()
 		}
 	})
 }
 
 func (sui *StatsUI) displayDays() {
-	sui.dateList.Clear()
 	rows, err := sui.db.RetrieveDailySummary()
 	if err != nil {
 		panic(err)
@@ -87,18 +98,59 @@ func (sui *StatsUI) displayDays() {
 	}
 }
 
-func convertDuration(duration string) string {
-	conv, err := strconv.Atoi(duration)
+func (sui *StatsUI) displayWeeks() {
+	rows, err := sui.db.RetrieveWeeklySummary()
 	if err != nil {
 		panic(err)
 	}
-	timeDuration := time.Duration(int(time.Second) * conv)
-	return timeDuration.String()
+	for _, row := range rows {
+		sui.dateList.AddItem(row.DateRange, "", 0, func() { sui.displayStats(row) })
+	}
 }
 
-func (sui *StatsUI) displayStats(stats database.DailySession) {
+func (sui *StatsUI) displayMonths() {
+	rows, err := sui.db.RetrieveMonthlySummary()
+	if err != nil {
+		panic(err)
+	}
+	for _, row := range rows {
+		sui.dateList.AddItem(row.Date, "", 0, func() { sui.displayStats(row) })
+	}
+}
+
+func (sui *StatsUI) displayYears() {
+	rows, err := sui.db.RetrieveYearlySummary()
+	if err != nil {
+		panic(err)
+	}
+	for _, row := range rows {
+		sui.dateList.AddItem(row.Date, "", 0, func() { sui.displayStats(row) })
+	}
+}
+
+func (sui *StatsUI) displayAlltime() {
+	rows, err := sui.db.RetrieveYearlySummary()
+	if err != nil {
+		panic(err)
+	}
+	for _, row := range rows {
+		sui.dateList.AddItem("KAPPA PENIS", "", 0, func() { sui.displayStats(row) })
+	}
+}
+
+func convertDuration(duration int) string {
+	var t time.Time
+	t = t.Add(time.Duration(duration) * time.Second)
+	return t.Format(time.TimeOnly)
+}
+
+func (sui *StatsUI) displayStats(stats database.SessionSummary) {
 	sui.infoList.Clear()
-	sui.infoList.AddItem("Date", stats.Date, 0, nil)
+	if stats.Date != "" && stats.DateRange != "" {
+		sui.infoList.AddItem("Date", stats.DateRange, 0, nil)
+	} else if stats.Date != "" && stats.DateRange == "" {
+		sui.infoList.AddItem("Date", stats.Date, 0, nil)
+	}
 	sui.infoList.AddItem("Total Duration", convertDuration(stats.TotalDuration), 0, nil)
 	sui.infoList.AddItem("Completed Sessions", strconv.Itoa(stats.CompletedSessions), 0, nil)
 	sui.infoList.AddItem("Total Sessions", strconv.Itoa(stats.TotalSessions), 0, nil)
