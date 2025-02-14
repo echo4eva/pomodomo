@@ -94,7 +94,10 @@ func (sui *StatsUI) displayDays() {
 		panic(err)
 	}
 	for _, row := range rows {
-		sui.dateList.AddItem(row.Date, "", 0, func() { sui.displayStats(row) })
+		sui.dateList.AddItem(row.Date, "", 0, func() {
+			sui.displayStats(row)
+			sui.displayTaskStats(row.Date, "Day")
+		})
 	}
 }
 
@@ -104,7 +107,10 @@ func (sui *StatsUI) displayWeeks() {
 		panic(err)
 	}
 	for _, row := range rows {
-		sui.dateList.AddItem(row.DateRange, "", 0, func() { sui.displayStats(row) })
+		sui.dateList.AddItem(row.DateRange, "", 0, func() {
+			sui.displayStats(row)
+			sui.displayTaskStats(row.Date, "Week")
+		})
 	}
 }
 
@@ -114,7 +120,10 @@ func (sui *StatsUI) displayMonths() {
 		panic(err)
 	}
 	for _, row := range rows {
-		sui.dateList.AddItem(row.Date, "", 0, func() { sui.displayStats(row) })
+		sui.dateList.AddItem(row.Date, "", 0, func() {
+			sui.displayStats(row)
+			sui.displayTaskStats(row.Date, "Month")
+		})
 	}
 }
 
@@ -124,7 +133,10 @@ func (sui *StatsUI) displayYears() {
 		panic(err)
 	}
 	for _, row := range rows {
-		sui.dateList.AddItem(row.Date, "", 0, func() { sui.displayStats(row) })
+		sui.dateList.AddItem(row.Date, "", 0, func() {
+			sui.displayStats(row)
+			sui.displayTaskStats(row.Date, "Year")
+		})
 	}
 }
 
@@ -134,7 +146,10 @@ func (sui *StatsUI) displayAlltime() {
 		panic(err)
 	}
 	for _, row := range rows {
-		sui.dateList.AddItem("KAPPA PENIS", "", 0, func() { sui.displayStats(row) })
+		sui.dateList.AddItem("KAPPA PENIS", "", 0, func() {
+			sui.displayStats(row)
+			sui.displayTaskStats("", "Alltime")
+		})
 	}
 }
 
@@ -154,6 +169,32 @@ func (sui *StatsUI) displayStats(stats database.SessionSummary) {
 	sui.infoList.AddItem("Total Duration", convertDuration(stats.TotalDuration), 0, nil)
 	sui.infoList.AddItem("Completed Sessions", strconv.Itoa(stats.CompletedSessions), 0, nil)
 	sui.infoList.AddItem("Total Sessions", strconv.Itoa(stats.TotalSessions), 0, nil)
+}
+
+func (sui *StatsUI) displayTaskStats(date string, timeframe string) {
+	var tasks []database.TaskSummary
+	var err error
+
+	switch timeframe {
+	case "Day":
+		tasks, err = sui.db.RetrieveDailyTaskSummary(date)
+	case "Week":
+		tasks, err = sui.db.RetrieveWeeklyTaskSummary(date)
+	case "Month":
+		tasks, err = sui.db.RetrieveMonthlyTaskSummary(date)
+	case "Year":
+		tasks, err = sui.db.RetrieveYearlyTaskSummary(date)
+	case "Alltime":
+		tasks, err = sui.db.RetrieveAlltimeTaskSummary()
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, task := range tasks {
+		sui.infoList.AddItem(task.TaskName, strconv.Itoa(task.TotalDuration), 0, nil)
+	}
 }
 
 func StatsExec() {
