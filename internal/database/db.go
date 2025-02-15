@@ -216,7 +216,7 @@ func (d *Database) RetrieveTaskByName(name string) (*Task, error) {
 }
 
 func (d *Database) RetrieveDailySummary() ([]SessionSummary, error) {
-	selectSQL := `
+	query := `
 		SELECT
 			DATE(ended_at) as date,
 			SUM(duration) as total_duration,
@@ -227,240 +227,20 @@ func (d *Database) RetrieveDailySummary() ([]SessionSummary, error) {
 		ORDER BY DATE(ended_at) DESC
 	`
 
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []SessionSummary
-	row, err := stmt.Query()
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var sessionSummary SessionSummary
-		err = row.Scan(
-			&sessionSummary.Date,
-			&sessionSummary.TotalDuration,
-			&sessionSummary.CompletedSessions,
-			&sessionSummary.TotalSessions,
+	return d.querySession(query, func(rows *sql.Rows) (SessionSummary, error) {
+		var s SessionSummary
+		err := rows.Scan(
+			&s.Date,
+			&s.TotalDuration,
+			&s.CompletedSessions,
+			&s.TotalSessions,
 		)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, sessionSummary)
-	}
-
-	return output, nil
-}
-
-func (d *Database) RetrieveDailyTaskSummary(date string) ([]TaskSummary, error) {
-	selectSQL := `
-		SELECT
-			tasks.name as task_name,
-			SUM(duration) as total_duration,
-			SUM(completed) as completed_sessions,
-			COUNT(*) as total_sessions
-		FROM sessions
-		LEFT JOIN tasks ON sessions.task_id = tasks.id
-		WHERE DATE(ended_at) = ?
-		GROUP BY task_id, task_name
-	`
-
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []TaskSummary
-	row, err := stmt.Query(date)
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var taskSummary TaskSummary
-		err = row.Scan(
-			&taskSummary.TaskName,
-			&taskSummary.TotalDuration,
-			&taskSummary.CompletedSessions,
-			&taskSummary.TotalSessions,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, taskSummary)
-	}
-
-	return output, nil
-}
-
-func (d *Database) RetrieveWeeklyTaskSummary(date string) ([]TaskSummary, error) {
-	selectSQL := `
-		SELECT
-			tasks.name as task_name,
-			SUM(duration) as total_duration,
-			SUM(completed) as completed_sessions,
-			COUNT(*) as total_sessions
-		FROM sessions
-		LEFT JOIN tasks ON sessions.task_id = tasks.id
-		WHERE STRFTIME('%Y-%W', ended_at) = ?
-		GROUP BY task_id, task_name
-	`
-
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []TaskSummary
-	row, err := stmt.Query(date)
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var taskSummary TaskSummary
-		err = row.Scan(
-			&taskSummary.TaskName,
-			&taskSummary.TotalDuration,
-			&taskSummary.CompletedSessions,
-			&taskSummary.TotalSessions,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, taskSummary)
-	}
-
-	return output, nil
-}
-
-func (d *Database) RetrieveMonthlyTaskSummary(date string) ([]TaskSummary, error) {
-	selectSQL := `
-		SELECT
-			tasks.name as task_name,
-			SUM(duration) as total_duration,
-			SUM(completed) as completed_sessions,
-			COUNT(*) as total_sessions
-		FROM sessions
-		LEFT JOIN tasks ON sessions.task_id = tasks.id
-		WHERE STRFTIME('%Y-%m', ended_at) = ?
-		GROUP BY task_id, task_name
-	`
-
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []TaskSummary
-	row, err := stmt.Query(date)
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var taskSummary TaskSummary
-		err = row.Scan(
-			&taskSummary.TaskName,
-			&taskSummary.TotalDuration,
-			&taskSummary.CompletedSessions,
-			&taskSummary.TotalSessions,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, taskSummary)
-	}
-
-	return output, nil
-}
-
-func (d *Database) RetrieveYearlyTaskSummary(date string) ([]TaskSummary, error) {
-	selectSQL := `
-		SELECT
-			tasks.name as task_name,
-			SUM(duration) as total_duration,
-			SUM(completed) as completed_sessions,
-			COUNT(*) as total_sessions
-		FROM sessions
-		LEFT JOIN tasks ON sessions.task_id = tasks.id
-		WHERE STRFTIME('%Y', ended_at) = ?
-		GROUP BY task_id, task_name
-	`
-
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []TaskSummary
-	row, err := stmt.Query(date)
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var taskSummary TaskSummary
-		err = row.Scan(
-			&taskSummary.TaskName,
-			&taskSummary.TotalDuration,
-			&taskSummary.CompletedSessions,
-			&taskSummary.TotalSessions,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, taskSummary)
-	}
-
-	return output, nil
-}
-
-func (d *Database) RetrieveAlltimeTaskSummary() ([]TaskSummary, error) {
-	selectSQL := `
-		SELECT
-			tasks.name as task_name,
-			SUM(duration) as total_duration,
-			SUM(completed) as completed_sessions,
-			COUNT(*) as total_sessions
-		FROM sessions
-		LEFT JOIN tasks ON sessions.task_id = tasks.id
-		GROUP BY task_id, task_name
-	`
-
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []TaskSummary
-	row, err := stmt.Query()
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var taskSummary TaskSummary
-		err = row.Scan(
-			&taskSummary.TaskName,
-			&taskSummary.TotalDuration,
-			&taskSummary.CompletedSessions,
-			&taskSummary.TotalSessions,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		output = append(output, taskSummary)
-	}
-
-	return output, nil
+		return s, err
+	})
 }
 
 func (d *Database) RetrieveWeeklySummary() ([]SessionSummary, error) {
-	selectSQL := `
+	query := `
 		SELECT
 			STRFTIME('%Y-%W', ended_at) as date,
 			STRFTIME('%Y-%m-%d', DATE(ended_at, 'weekday 0', '-6 days')) || ' to ' ||
@@ -473,36 +253,21 @@ func (d *Database) RetrieveWeeklySummary() ([]SessionSummary, error) {
 		ORDER BY date DESC
 	`
 
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []SessionSummary
-	row, err := stmt.Query()
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var sessionSummary SessionSummary
-		err = row.Scan(
-			&sessionSummary.Date,
-			&sessionSummary.DateRange,
-			&sessionSummary.TotalDuration,
-			&sessionSummary.CompletedSessions,
-			&sessionSummary.TotalSessions,
+	return d.querySession(query, func(rows *sql.Rows) (SessionSummary, error) {
+		var s SessionSummary
+		err := rows.Scan(
+			&s.Date,
+			&s.DateRange,
+			&s.TotalDuration,
+			&s.CompletedSessions,
+			&s.TotalSessions,
 		)
-		if err != nil {
-			return nil, err
-		}
-		output = append(output, sessionSummary)
-	}
-
-	return output, nil
+		return s, err
+	})
 }
 
 func (d *Database) RetrieveMonthlySummary() ([]SessionSummary, error) {
-	selectSQL := `
+	query := `
 		SELECT
 			STRFTIME('%Y-%m', ended_at) as date,
 			SUM(duration) as total_duration,
@@ -513,35 +278,20 @@ func (d *Database) RetrieveMonthlySummary() ([]SessionSummary, error) {
 		ORDER BY date DESC
 	`
 
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []SessionSummary
-	row, err := stmt.Query()
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var sessionSummary SessionSummary
-		err = row.Scan(
-			&sessionSummary.Date,
-			&sessionSummary.TotalDuration,
-			&sessionSummary.CompletedSessions,
-			&sessionSummary.TotalSessions,
+	return d.querySession(query, func(rows *sql.Rows) (SessionSummary, error) {
+		var s SessionSummary
+		err := rows.Scan(
+			&s.Date,
+			&s.TotalDuration,
+			&s.CompletedSessions,
+			&s.TotalSessions,
 		)
-		if err != nil {
-			return nil, err
-		}
-		output = append(output, sessionSummary)
-	}
-
-	return output, nil
+		return s, err
+	})
 }
 
 func (d *Database) RetrieveYearlySummary() ([]SessionSummary, error) {
-	selectSQL := `
+	query := `
 		SELECT
 			STRFTIME('%Y', ended_at) as date,
 			SUM(duration) as total_duration,
@@ -552,35 +302,20 @@ func (d *Database) RetrieveYearlySummary() ([]SessionSummary, error) {
 		ORDER BY date DESC
 	`
 
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []SessionSummary
-	row, err := stmt.Query()
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var sessionSummary SessionSummary
-		err = row.Scan(
-			&sessionSummary.Date,
-			&sessionSummary.TotalDuration,
-			&sessionSummary.CompletedSessions,
-			&sessionSummary.TotalSessions,
+	return d.querySession(query, func(rows *sql.Rows) (SessionSummary, error) {
+		var s SessionSummary
+		err := rows.Scan(
+			&s.Date,
+			&s.TotalDuration,
+			&s.CompletedSessions,
+			&s.TotalSessions,
 		)
-		if err != nil {
-			return nil, err
-		}
-		output = append(output, sessionSummary)
-	}
-
-	return output, nil
+		return s, err
+	})
 }
 
 func (d *Database) RetrieveAlltimeSummary() ([]SessionSummary, error) {
-	selectSQL := `
+	query := `
 		SELECT
 			SUM(duration) as total_duration,
 			SUM(completed) as completed_sessions,
@@ -588,28 +323,130 @@ func (d *Database) RetrieveAlltimeSummary() ([]SessionSummary, error) {
 		FROM sessions
 	`
 
-	stmt, err := d.db.Prepare(selectSQL)
-	if err != nil {
-		return nil, err
-	}
-
-	var output []SessionSummary
-	row, err := stmt.Query()
-	if err != nil {
-		return nil, err
-	}
-	for row.Next() {
-		var sessionSummary SessionSummary
-		err = row.Scan(
-			&sessionSummary.TotalDuration,
-			&sessionSummary.CompletedSessions,
-			&sessionSummary.TotalSessions,
+	return d.querySession(query, func(rows *sql.Rows) (SessionSummary, error) {
+		var s SessionSummary
+		err := rows.Scan(
+			&s.TotalDuration,
+			&s.CompletedSessions,
+			&s.TotalSessions,
 		)
+		return s, err
+	})
+}
+
+func (d *Database) querySession(sql string, scanner func(*sql.Rows) (SessionSummary, error), args ...any) ([]SessionSummary, error) {
+	rows, err := d.db.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	var output []SessionSummary
+	for rows.Next() {
+		sessionSummary, err := scanner(rows)
 		if err != nil {
 			return nil, err
 		}
 		output = append(output, sessionSummary)
 	}
+	return output, nil
+}
 
+func (d *Database) RetrieveDailyTaskSummary(date string) ([]TaskSummary, error) {
+	query := `
+		SELECT
+			tasks.name as task_name,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		LEFT JOIN tasks ON sessions.task_id = tasks.id
+		WHERE DATE(ended_at) = ?
+		GROUP BY task_id, task_name
+	`
+
+	return d.queryTask(query, date)
+}
+
+func (d *Database) RetrieveWeeklyTaskSummary(date string) ([]TaskSummary, error) {
+	query := `
+		SELECT
+			tasks.name as task_name,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		LEFT JOIN tasks ON sessions.task_id = tasks.id
+		WHERE STRFTIME('%Y-%W', ended_at) = ?
+		GROUP BY task_id, task_name
+	`
+
+	return d.queryTask(query, date)
+}
+
+func (d *Database) RetrieveMonthlyTaskSummary(date string) ([]TaskSummary, error) {
+	query := `
+		SELECT
+			tasks.name as task_name,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		LEFT JOIN tasks ON sessions.task_id = tasks.id
+		WHERE STRFTIME('%Y-%m', ended_at) = ?
+		GROUP BY task_id, task_name
+	`
+
+	return d.queryTask(query, date)
+}
+
+func (d *Database) RetrieveYearlyTaskSummary(date string) ([]TaskSummary, error) {
+	query := `
+		SELECT
+			tasks.name as task_name,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		LEFT JOIN tasks ON sessions.task_id = tasks.id
+		WHERE STRFTIME('%Y', ended_at) = ?
+		GROUP BY task_id, task_name
+	`
+
+	return d.queryTask(query, date)
+}
+
+func (d *Database) RetrieveAlltimeTaskSummary() ([]TaskSummary, error) {
+	query := `
+		SELECT
+			tasks.name as task_name,
+			SUM(duration) as total_duration,
+			SUM(completed) as completed_sessions,
+			COUNT(*) as total_sessions
+		FROM sessions
+		LEFT JOIN tasks ON sessions.task_id = tasks.id
+		GROUP BY task_id, task_name
+	`
+
+	return d.queryTask(query)
+}
+
+func (d *Database) queryTask(query string, args ...any) ([]TaskSummary, error) {
+	rows, err := d.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	var output []TaskSummary
+	for rows.Next() {
+		var taskSummary TaskSummary
+		err := rows.Scan(
+			&taskSummary.TaskName,
+			&taskSummary.TotalDuration,
+			&taskSummary.CompletedSessions,
+			&taskSummary.TotalSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, taskSummary)
+	}
 	return output, nil
 }

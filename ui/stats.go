@@ -73,90 +73,36 @@ func (sui *StatsUI) initializeTUI() {
 		sui.app.SetFocus(sui.dateList)
 		sui.dateFlex.Box.SetBorderColor(tcell.ColorHotPink)
 		sui.timeframeFlex.Box.SetBorderColor(tcell.ColorWhite)
-		switch main {
-		case "Day":
-			sui.displayDays()
-		case "Week":
-			sui.displayWeeks()
-		case "Month":
-			sui.displayMonths()
-		case "Year":
-			sui.displayYears()
-		case "Alltime":
-			sui.displayAlltime()
-		}
+		sui.display(main)
 	})
 }
 
-func (sui *StatsUI) displayDays() {
-	rows, err := sui.db.RetrieveDailySummary()
+func (sui *StatsUI) display(timeframe string) {
+	var sessions []database.SessionSummary
+	var err error
+
+	switch timeframe {
+	case "Day":
+		sessions, err = sui.db.RetrieveDailySummary()
+	case "Week":
+		sessions, err = sui.db.RetrieveWeeklySummary()
+	case "Month":
+		sessions, err = sui.db.RetrieveMonthlySummary()
+	case "Year":
+		sessions, err = sui.db.RetrieveYearlySummary()
+	case "Alltime":
+		sessions, err = sui.db.RetrieveAlltimeSummary()
+	}
 	if err != nil {
 		panic(err)
 	}
-	for _, row := range rows {
+
+	for _, row := range sessions {
 		sui.dateList.AddItem(row.Date, "", 0, func() {
 			sui.displayStats(row)
-			sui.displayTaskStats(row.Date, "Day")
+			sui.displayTaskStats(row.Date, timeframe)
 		})
 	}
-}
-
-func (sui *StatsUI) displayWeeks() {
-	rows, err := sui.db.RetrieveWeeklySummary()
-	if err != nil {
-		panic(err)
-	}
-	for _, row := range rows {
-		sui.dateList.AddItem(row.DateRange, "", 0, func() {
-			sui.displayStats(row)
-			sui.displayTaskStats(row.Date, "Week")
-		})
-	}
-}
-
-func (sui *StatsUI) displayMonths() {
-	rows, err := sui.db.RetrieveMonthlySummary()
-	if err != nil {
-		panic(err)
-	}
-	for _, row := range rows {
-		sui.dateList.AddItem(row.Date, "", 0, func() {
-			sui.displayStats(row)
-			sui.displayTaskStats(row.Date, "Month")
-		})
-	}
-}
-
-func (sui *StatsUI) displayYears() {
-	rows, err := sui.db.RetrieveYearlySummary()
-	if err != nil {
-		panic(err)
-	}
-	for _, row := range rows {
-		sui.dateList.AddItem(row.Date, "", 0, func() {
-			sui.displayStats(row)
-			sui.displayTaskStats(row.Date, "Year")
-		})
-	}
-}
-
-func (sui *StatsUI) displayAlltime() {
-	rows, err := sui.db.RetrieveYearlySummary()
-	if err != nil {
-		panic(err)
-	}
-	for _, row := range rows {
-		sui.dateList.AddItem("KAPPA PENIS", "", 0, func() {
-			sui.displayStats(row)
-			sui.displayTaskStats("", "Alltime")
-		})
-	}
-}
-
-func convertDuration(duration int) string {
-	var t time.Time
-	t = t.Add(time.Duration(duration) * time.Second)
-	return t.Format(time.TimeOnly)
 }
 
 func (sui *StatsUI) displayStats(stats database.SessionSummary) {
@@ -195,6 +141,12 @@ func (sui *StatsUI) displayTaskStats(date string, timeframe string) {
 	for _, task := range tasks {
 		sui.infoList.AddItem(task.TaskName, strconv.Itoa(task.TotalDuration), 0, nil)
 	}
+}
+
+func convertDuration(duration int) string {
+	var t time.Time
+	t = t.Add(time.Duration(duration) * time.Second)
+	return t.Format(time.TimeOnly)
 }
 
 func StatsExec() {
