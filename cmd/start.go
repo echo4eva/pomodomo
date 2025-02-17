@@ -36,5 +36,5 @@ func runStart(cmd *cobra.Command, args []string) {
 func init() {
 	rootCmd.AddCommand(startCmd)
 	startCmd.Flags().Uint("minutes", 30, "minutes for the timer")
-	startCmd.Flags().String("task", "", "task doing")
+	startCmd.Flags().String("task", "focus", "task doing")
 }

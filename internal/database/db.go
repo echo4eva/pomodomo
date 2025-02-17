@@ -90,9 +90,18 @@ func (d *Database) createTables() error {
 		);
 	`
 
+	insertTasksSQL := `
+		INSERT INTO tasks(name) VALUES
+			("study"),
+			("read"),
+			("focus"),
+			("work");
+	`
+
 	tables := []string{
 		createSessionsTableSQL,
 		createTasksTableSQL,
+		insertTasksSQL,
 	}
 
 	for _, sql := range tables {
