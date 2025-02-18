@@ -1,8 +1,8 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/echo4eva/pomogomo/internal/database"
 	"github.com/gdamore/tcell/v2"
@@ -139,14 +139,13 @@ func (sui *StatsUI) displayTaskStats(date string, timeframe string) {
 	}
 
 	for _, task := range tasks {
-		sui.infoList.AddItem(task.TaskName, strconv.Itoa(task.TotalDuration), 0, nil)
+		sui.infoList.AddItem(task.TaskName, convertDuration(task.TotalDuration), 0, nil)
 	}
 }
 
 func convertDuration(duration int) string {
-	var t time.Time
-	t = t.Add(time.Duration(duration) * time.Second)
-	return t.Format(time.TimeOnly)
+	hours := float64(duration) / 3600.0
+	return fmt.Sprintf("%.2f hours", hours)
 }
 
 func StatsExec() {
