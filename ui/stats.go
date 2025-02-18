@@ -38,8 +38,8 @@ func (sui *StatsUI) initializeTUI() {
 	sui.view.AddItem(sui.nav, 0, 1, true)
 	sui.view.AddItem(sui.info, 0, 1, false)
 
-	sui.timeframeFlex = createFlex("Timeframes")
-	sui.dateFlex = createFlex("Time periods")
+	sui.timeframeFlex = createFlex("(F1) - Timeframes")
+	sui.dateFlex = createFlex("(F2) - Time periods")
 	sui.nav.AddItem(sui.timeframeFlex, 0, 1, true)
 	sui.nav.AddItem(sui.dateFlex, 0, 1, false)
 
@@ -54,27 +54,46 @@ func (sui *StatsUI) initializeTUI() {
 	sui.dateList = tview.NewList().ShowSecondaryText(false)
 	sui.dateFlex.AddItem(sui.dateList, 0, 1, false)
 
+	focusTimeframe := sui.swapFocus(sui.timeframeList, sui.timeframeFlex, sui.dateFlex)
+	focusDate := sui.swapFocus(sui.dateList, sui.dateFlex, sui.timeframeFlex)
+
 	sui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyF1:
-			sui.app.SetFocus(sui.timeframeList)
-			sui.timeframeFlex.Box.SetBorderColor(tcell.ColorHotPink)
-			sui.dateFlex.Box.SetBorderColor(tcell.ColorWhite)
+			focusTimeframe()
 		case tcell.KeyF2:
-			sui.app.SetFocus(sui.dateList)
-			sui.timeframeFlex.Box.SetBorderColor(tcell.ColorWhite)
-			sui.dateFlex.Box.SetBorderColor(tcell.ColorHotPink)
+			focusDate()
+		case tcell.KeyLeft:
+			switch sui.app.GetFocus() {
+			case sui.timeframeList:
+				focusDate()
+			case sui.dateList:
+				focusTimeframe()
+			}
+		case tcell.KeyRight:
+			switch sui.app.GetFocus() {
+			case sui.timeframeList:
+				focusDate()
+			case sui.dateList:
+				focusTimeframe()
+			}
 		}
 		return event
 	})
 
 	sui.timeframeList.SetSelectedFunc(func(index int, main string, secondary string, shortcut rune) {
 		sui.dateList.Clear()
-		sui.app.SetFocus(sui.dateList)
-		sui.dateFlex.Box.SetBorderColor(tcell.ColorHotPink)
-		sui.timeframeFlex.Box.SetBorderColor(tcell.ColorWhite)
+		focusDate()
 		sui.display(main)
 	})
+}
+
+func (sui *StatsUI) swapFocus(nextFocus *tview.List, nextFlex, currentFlex *tview.Flex) func() {
+	return func() {
+		sui.app.SetFocus(nextFocus)
+		currentFlex.Box.SetBorderColor(tcell.ColorWhite)
+		nextFlex.Box.SetBorderColor(tcell.ColorHotPink)
+	}
 }
 
 func (sui *StatsUI) display(timeframe string) {
