@@ -33,7 +33,7 @@ func createFlex(title string) *tview.Flex {
 func (sui *StatsUI) initializeTUI() {
 	sui.nav = createFlex("").SetDirection(tview.FlexRow)
 	sui.info = createFlex("Info")
-	sui.infoList = tview.NewList()
+	sui.infoList = tview.NewList().SetSelectedFocusOnly(true)
 	sui.info.AddItem(sui.infoList, 0, 1, false)
 	sui.view.AddItem(sui.nav, 0, 1, true)
 	sui.view.AddItem(sui.info, 0, 1, false)
@@ -116,11 +116,18 @@ func (sui *StatsUI) display(timeframe string) {
 		panic(err)
 	}
 
-	for _, row := range sessions {
-		sui.dateList.AddItem(row.Date, "", 0, func() {
-			sui.displayStats(row)
-			sui.displayTaskStats(row.Date, timeframe)
+	if timeframe == "Alltime" {
+		sui.dateList.AddItem(timeframe, "", 0, func() {
+			sui.displayStats(sessions[0])
+			sui.displayTaskStats(timeframe, timeframe)
 		})
+	} else {
+		for _, row := range sessions {
+			sui.dateList.AddItem(row.Date, "", 0, func() {
+				sui.displayStats(row)
+				sui.displayTaskStats(row.Date, timeframe)
+			})
+		}
 	}
 }
 

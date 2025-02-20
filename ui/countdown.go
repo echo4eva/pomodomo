@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -18,10 +20,17 @@ type TimerUI struct {
 	description   *string
 }
 
-func (tui TimerUI) getTimer() string {
+func (tui TimerUI) getCountdown() string {
 	difference := time.Until(*tui.scheduled_end)
 	difference = difference.Round(time.Second)
-	countdown := formatTimer(difference.String())
+	countdown := formatTime(difference.String())
+	return fmt.Sprint(countdown)
+}
+
+func (tui TimerUI) getTimer() string {
+	timeSince := time.Since(*tui.scheduled_end)
+	timeSince = timeSince.Round(time.Second)
+	countdown := formatTime(timeSince.String())
 	return fmt.Sprint(countdown)
 }
 
@@ -39,7 +48,7 @@ func (tui TimerUI) getCompletion() int {
 	return 0
 }
 
-func formatTimer(duration string) string {
+func formatTime(duration string) string {
 	fillZeroes := func(s string) string {
 		if len(s) < 2 {
 			return "0" + s
@@ -74,19 +83,23 @@ func formatTimer(duration string) string {
 	return formattedCountdown
 }
 
+func (tui *TimerUI) updateCountdown() {
+	for {
+		time.Sleep(1 * time.Second)
+		timer := tui.getCountdown()
+		tui.app.QueueUpdateDraw(func() {
+			tui.view.SetText(fmt.Sprint(timer, " left"))
+		})
+	}
+}
+
 func (tui *TimerUI) updateTimer() {
 	for {
 		time.Sleep(1 * time.Second)
 		timer := tui.getTimer()
 		tui.app.QueueUpdateDraw(func() {
-			tui.view.SetText(fmt.Sprint(timer, " left"))
+			tui.view.SetText(fmt.Sprint(timer, " elapsed"))
 		})
-		if timer == "0" {
-			tui.app.QueueUpdateDraw(func() {
-				tui.view.SetText("You're done! Lock in if you're tapped in!")
-			})
-			break
-		}
 	}
 }
 
@@ -117,6 +130,10 @@ func Exec(start, scheduled_end time.Time, taskName string) {
 	app := tview.NewApplication()
 	view := tview.NewModal()
 	task, err := db.RetrieveTaskByName(taskName)
+	if err == sql.ErrNoRows {
+		fmt.Printf("Invalid task name entered: %s\n", taskName)
+		os.Exit(1)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -138,7 +155,12 @@ func Exec(start, scheduled_end time.Time, taskName string) {
 			}
 		})
 
-	go tui.updateTimer()
+	if tui.start.String() == tui.scheduled_end.String() {
+		go tui.updateTimer()
+	} else {
+		go tui.updateCountdown()
+	}
+
 	if err := tui.app.SetRoot(view, false).Run(); err != nil {
 		panic(err)
 	}
