@@ -121,6 +121,13 @@ func (sui *StatsUI) display(timeframe string) {
 			sui.displayStats(sessions[0])
 			sui.displayTaskStats(timeframe, timeframe)
 		})
+	} else if timeframe == "Week" {
+		for _, row := range sessions {
+			sui.dateList.AddItem(row.DateRange, "", 0, func() {
+				sui.displayStats(row)
+				sui.displayTaskStats(row.Date, timeframe)
+			})
+		}
 	} else {
 		for _, row := range sessions {
 			sui.dateList.AddItem(row.Date, "", 0, func() {
