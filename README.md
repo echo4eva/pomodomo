@@ -23,6 +23,7 @@ Go is required. If you don't have Go, you can follow [official instructions](htt
 
 ```shell
 git clone https://github.com/echo4eva/pomodomo.git
+cd pomogomo/
 go build
 ```
 
