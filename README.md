@@ -10,7 +10,7 @@ studying, working, or reading, or create your own.
 1. Stats
     <img src="assets/stats.png"/>
 2. Start
-    <img src="assets/stats.png">
+    <img src="assets/start.png">
 
 ---
 
@@ -35,7 +35,7 @@ go install github.com/echo4eva/pomodomo@latest
 
 ## Commands/Usage
 
-NOTE: If you installed via cloning, you must use `cd` into the project directory
+NOTE: If you installed via cloning, you must `cd` into the project directory
 and use `./pomogomo <command>` to use the tool. If done through GO install,
 you can just use `pomogomo <command>`.
 
