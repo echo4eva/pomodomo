@@ -75,4 +75,4 @@ pomogomo task delete <task name>
 
 ## Writeup
 
-If you want to know my thoughts on making this tool, feel free to read my blog on it!
+If you want to know my thoughts on making this tool, feel free to [read my blog on it](https://echo4eva.com/pomogomo/)!
